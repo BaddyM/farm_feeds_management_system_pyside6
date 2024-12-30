@@ -1,0 +1,20 @@
+.auth_input{
+    padding: 7px;
+}
+
+.auth_title{
+    font-size: 18px;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-decoration: underline;
+}
+
+.submit_btn{
+    background: rgb(0, 70, 167);
+    padding: 10px;
+    font-weight: bold;
+}
+
+.small_input, .labels{
+    font-size: 15px;
+}
