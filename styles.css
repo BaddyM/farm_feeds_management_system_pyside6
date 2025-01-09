@@ -18,3 +18,9 @@
 .small_input, .labels{
     font-size: 15px;
 }
+
+.formulation_input{
+    padding:7px;
+    background: rgba(255,255,255,0.2);
+    color:white;
+}
