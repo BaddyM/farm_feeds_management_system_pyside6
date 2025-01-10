@@ -4,7 +4,7 @@ from dashboard import Dashboard
 from auth import Auth
 
 app = QApplication(sys.argv)
-window = Dashboard()
+window = Auth()
 window.show()
 
 with open("styles.css", "r") as f:
