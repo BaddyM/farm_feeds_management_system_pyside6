@@ -50,8 +50,8 @@ class Dashboard(QMainWindow):
         file.addSeparator()
         file.addAction("Quit", self.quit_app)
         settings.addAction("Profile", self.profile)
-        settings.addSeparator()
-        settings.addAction("Weeks Data")
+        # settings.addSeparator()
+        # settings.addAction("Weeks Data")
         settings.addSeparator()
         settings.addAction("Logout",self.logout)
         
@@ -309,13 +309,104 @@ class Dashboard(QMainWindow):
         self.close()
     
     def profile(self):
-        profile_title_layout = QHBoxLayout()
+        profile_layout = QVBoxLayout()
+        profile_layout.setSpacing(10)
         profile_title = QLabel("User Profile")
         profile_title.setProperty("class","auth_title")
-        profile_title_layout.addWidget(profile_title,1,Qt.AlignmentFlag.AlignTop)
-        centralWidget = QWidget()
-        centralWidget.setLayout(profile_title_layout)
-        self.setCentralWidget(centralWidget)
+        profile_layout.addWidget(profile_title,1,Qt.AlignmentFlag.AlignTop)
+
+        #Old username
+        user_name_layout = QHBoxLayout()
+        user_name_label = QLabel("Username")
+        self.user_name_input = QLineEdit()
+        self.user_name_input.setStyleSheet("""
+            padding:7px;
+        """)
+        self.user_name_input.EchoMode(QLineEdit.EchoMode.Password)
+        self.user_name_input.setPlaceholderText("Enter username")
+        user_name_layout.addWidget(user_name_label)
+        user_name_layout.addWidget(self.user_name_input)
+
+        #New Username
+        new_user_name_layout = QHBoxLayout()
+        new_user_name_label = QLabel("New Username")
+        self.new_user_name_input = QLineEdit()
+        self.new_user_name_input.setStyleSheet("""
+            padding:7px;
+        """)
+        self.new_user_name_input.EchoMode(QLineEdit.EchoMode.Password)
+        self.new_user_name_input.setPlaceholderText("Enter new username")
+        new_user_name_layout.addWidget(new_user_name_label)
+        new_user_name_layout.addWidget(self.new_user_name_input)
+
+        #Old Password
+        old_password_layout = QHBoxLayout()
+        old_password_label = QLabel("Old password")
+        self.old_password_input = QLineEdit()
+        self.old_password_input.setStyleSheet("""
+            padding:7px;
+        """)
+        self.old_password_input.EchoMode(QLineEdit.EchoMode.Password)
+        self.old_password_input.setPlaceholderText("Enter old password")
+        old_password_layout.addWidget(old_password_label)
+        old_password_layout.addWidget(self.old_password_input)
+        #New Password
+        new_password_layout = QHBoxLayout()
+        new_password_label = QLabel("New password")
+        self.new_password_input = QLineEdit()
+        self.new_password_input.setStyleSheet("""
+            padding:7px;
+        """)
+        self.new_password_input.EchoMode(QLineEdit.EchoMode.Password)
+        self.new_password_input.setPlaceholderText("Enter new password")
+        new_password_layout.addWidget(new_password_label)
+        new_password_layout.addWidget(self.new_password_input)
+
+        #Confirm button
+        auth_btn = QPushButton("Update")
+        auth_btn.setStyleSheet("""
+            background:blue;
+            padding:7px;
+        """)
+        auth_btn.setMaximumWidth(100)
+        auth_btn.clicked.connect(self.update_profile)
+
+        #Add to layout
+        profile_layout.addLayout(user_name_layout)
+        profile_layout.addLayout(new_user_name_layout)
+        profile_layout.addLayout(old_password_layout)
+        profile_layout.addLayout(new_password_layout)
+        profile_layout.addWidget(auth_btn)
+        central_widget = QWidget()
+        central_widget.setFixedSize(QSize(500,300))
+        central_widget.setLayout(profile_layout)
+        self.setCentralWidget(central_widget)
+
+    def update_profile(self):
+        # Fetch Data
+        con = sqlite3.connect("files/data/database.db")
+        cursor = con.cursor()
+        res = cursor.execute("""
+                    SELECT * FROM user WHERE username = ? AND password = ?;
+                """, [self.user_name_input.text(), self.old_password_input.text()]).fetchall()
+
+        if (len(res) > 0 and self.old_password_input.text() != "" and self.new_password_input.text() != ""
+                and self.user_name_input.text() != "" and self.new_user_name_input.text() != ""):
+            # Update the password
+            cursor.execute("""
+                        UPDATE user SET username = ?, password = ? WHERE username = ?;
+                    """, [str.lower(self.new_user_name_input.text()), self.new_password_input.text(), self.user_name_input.text()])
+            con.commit()
+            con.close()
+            alert = QMessageBox.information(self, "Notification", "Success: Profile updated successfully!", QMessageBox.Ok)
+
+            #clear the inputs
+            self.new_user_name_input.setText("")
+            self.user_name_input.setText("")
+            self.old_password_input.setText("")
+            self.new_password_input.setText("")
+        else:
+            alert = QMessageBox.critical(self, "Alert", "Failed: Check credentials again!", QMessageBox.Ok)
 
     #Check if the ratio values are integers
     def ratio_one_validator(self):
@@ -402,7 +493,47 @@ class Dashboard(QMainWindow):
             self.total_feeds_input.setText("")
             
     def week_change(self):
-        current_value = self.week_selection.currentText()
+        week = int(self.week_selection.currentText())
+        if week == 1:
+            self.ratio1.setText(str(36))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(57))
+        elif week == 2:
+            self.ratio1.setText(str(36))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(36))
+        elif week == 3:
+            self.ratio1.setText(str(39))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(67))
+        elif week == 4:
+            self.ratio1.setText(str(39))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(67))
+        elif week == 5:
+            self.ratio1.setText(str(45))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(84))
+        elif week == 6:
+            self.ratio1.setText(str(75))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(75))
+        elif week == 7:
+            self.ratio1.setText(str(75))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(75))
+        elif week == 8:
+            self.ratio1.setText(str(75))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(75))
+        elif week == 9:
+            self.ratio1.setText(str(75))
+            self.ratio2.setText(str(50))
+            self.ratio3.setText(str(75))
+        else:
+            self.ratio1.setText("")
+            self.ratio2.setText("")
+            self.ratio3.setText("")
 
     def selected_item(self):
         selected = self.history_table.selectedItems()
@@ -492,12 +623,12 @@ class Dashboard(QMainWindow):
             print(res)
             if len(res) == 0:
                 cursor.execute("""
-                                                INSERT INTO feeds_formulation(date,week,total_chicken,total_feeds,maize_brand,kbc,broken) VALUES(?,?,?,?,?,?,?)
-                                            """, data)
+                                    INSERT INTO feeds_formulation(date,week,total_chicken,total_feeds,maize_brand,kbc,broken) VALUES(?,?,?,?,?,?,?)
+                                """, data)
                 con.commit()
                 con.close()
 
-                # Diplay in the table
+                # Display in the table
                 self.history_table.insertRow(0)
                 for x in range(len(data)):
                     if x == 2 or x == 3 or x == 4 or x == 5 or x == 6:

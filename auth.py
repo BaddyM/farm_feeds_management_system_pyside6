@@ -16,7 +16,8 @@ class Auth(QWidget):
         con = sqlite3.connect("files/data/database.db")
         cursor = con.cursor()
         cursor.execute("CREATE TABLE IF NOT EXISTS user(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL,password INTEGER NOT NULL)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS week_consumption(id INTEGER PRIMARY KEY AUTOINCREMENT, week INTEGER NOT NULL,consumption REAL NOT NULL)")
+        cursor.execute("INSERT INTO user(username, password) VALUES(?,?)",["admin","admin"])
+        con.commit()
         
         vlayout = QVBoxLayout()
         
