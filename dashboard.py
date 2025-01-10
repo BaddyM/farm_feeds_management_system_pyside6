@@ -1,29 +1,59 @@
-from PySide6.QtWidgets import QMainWindow,QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QWidget, QComboBox, QGridLayout, QPushButton
+from PySide6.QtWidgets import QMainWindow, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QWidget, QComboBox, QGridLayout, \
+    QPushButton, QTableWidget, QTableWidgetItem, QMessageBox, QAbstractScrollArea
 from PySide6.QtGui import QIcon,Qt
 from PySide6.QtCore import QSize
 import sqlite3
+from datetime import datetime
 
 class Dashboard(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Farm Feeds System")
         self.setWindowIcon(QIcon("logo.png"))
-        # self.setMinimumSize(QSize(1000,600))
+        self.setMinimumSize(QSize(1220,600))
         con = sqlite3.connect("files/data/database.db")
         cursor = con.cursor()
+
+        #Create feeds formulation table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS feeds_formulation(id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, week INTEGER NOT NULL DEFAULT 0, 
+        total_chicken INTEGER NOT NULL DEFAULT 0, total_feeds INTEGER NOT NULL DEFAULT 0, maize_brand INETGER NOT NULL DEFAULT 0, kbc INTEGER NOT NULL DEFAULT 0,
+        broken INTEGER NOT NULL DEFAULT 0
+        )
+        """)
+
+        #Create ratios table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ratios(id INTEGER PRIMARY KEY AUTOINCREMENT, ratio_title TEXT NOT NULL, ratio_value INTEGER NOT NULL)
+        """)
+
+        #Fetch ratios data
+        self.ratios = cursor.execute("""
+            SELECT * FROM ratios;
+        """).fetchall()
+
+        #Fetch feeds formulation data
+        self.data = cursor.execute("""
+            SELECT date,week,total_chicken, total_feeds, maize_brand, kbc, broken FROM feeds_formulation ORDER BY id DESC;
+        """).fetchall()
+
+        con.close()
+
+        self.selected_row = 0
+        self.selected_row_value = ""
         
         #Menu
         menuBar = self.menuBar()
         file = menuBar.addMenu("File")
         settings = menuBar.addMenu("Settings")
-        fileMenu = file.addAction("Home", self.home)
+        file.addAction("Home", self.home)
         file.addSeparator()
-        fileMenu = file.addAction("Quit", self.quit_app)
-        settingsMenu = settings.addAction("Profile", self.profile)
+        file.addAction("Quit", self.quit_app)
+        settings.addAction("Profile", self.profile)
         settings.addSeparator()
-        settingsMenu = settings.addAction("Weeks Data")
+        settings.addAction("Weeks Data")
         settings.addSeparator()
-        settingsMenu = settings.addAction("Logout",self.logout)
+        settings.addAction("Logout",self.logout)
         
         #Call the home widget
         self.home()
@@ -31,7 +61,11 @@ class Dashboard(QMainWindow):
     def home(self):
         dashboard_vlayout = QGridLayout()
         #Home Page title
-        farm_title = QLabel("Farm Feeds System")
+        farm_title = QLabel("Farm Feeds Formulation System")
+        farm_title.setStyleSheet("""
+            font-weight:bold;
+            text-transform:uppercase;
+        """)
         dashboard_vlayout.addWidget(farm_title)
 
         #Weeks Layout
@@ -55,6 +89,15 @@ class Dashboard(QMainWindow):
         self.ratio1 = QLineEdit()
         self.ratio2 = QLineEdit()
         self.ratio3 = QLineEdit()
+
+        #Assign the default values
+        try:
+            self.ratio1.setText(str(self.ratios[0][2]))
+            self.ratio2.setText(str(self.ratios[1][2]))
+            self.ratio3.setText(str(self.ratios[2][2]))
+        except:
+            alert = QMessageBox.information(self,"Notification","Please add all ratios!",QMessageBox.Ok)
+
         self.ratio1.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ratio2.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ratio3.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -73,6 +116,11 @@ class Dashboard(QMainWindow):
         self.ratio1.textChanged.connect(self.ratio_one_validator)
         self.ratio2.textChanged.connect(self.ratio_two_validator)
         self.ratio3.textChanged.connect(self.ratio_three_validator)
+
+        #Add or Update Ratios
+        self.ratio1.editingFinished.connect(self.addUpdateRatio1)
+        self.ratio2.editingFinished.connect(self.addUpdateRatio2)
+        self.ratio3.editingFinished.connect(self.addUpdateRatio3)
 
         ratios_vertical.addLayout(ratios_layout)
         ratios_vertical.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -99,11 +147,15 @@ class Dashboard(QMainWindow):
         self.total_chicken_input = QLineEdit()
         self.total_chicken_input.setPlaceholderText("Enter number of birds")
         self.total_feeds_input = QLineEdit()
+        self.total_feeds_input.setStyleSheet("""
+        color:white;
+        """)
+        self.total_feeds_input.setDisabled(True)
         self.total_feeds_input.setPlaceholderText("Enter amount in kgs")
-        self.total_chicken_input.setMaxLength(3)
+        # self.total_chicken_input.setMaxLength(3)
         self.total_feeds_input.setMaxLength(5)
         self.total_chicken_input.textChanged.connect(self.numeric_input_only_chicken)
-        self.total_feeds_input.textChanged.connect(self.numeric_input_only_feeds)
+        # self.total_feeds_input.textChanged.connect(self.numeric_input_only_feeds)
         spacer = QWidget()
         spacer.setFixedHeight(5)
         self.total_chicken_input.setFixedSize(QSize(300,40))
@@ -121,15 +173,15 @@ class Dashboard(QMainWindow):
         #Feeds Formulations
         feeds_formulations_row = QHBoxLayout()
         feeds_formulations_label = QLabel("Feed Formulations")
-        reset_btn = QPushButton("Reset")
-        reset_btn.setStyleSheet("""
+        self.reset_btn = QPushButton("Reset")
+        self.reset_btn.setStyleSheet("""
             background:red;
             padding:5px;
         """)
-
-        reset_btn.setMaximumWidth(80)
+        self.reset_btn.clicked.connect(self.reset_inputs)
+        self.reset_btn.setMaximumWidth(80)
         feeds_formulations_row.addWidget(feeds_formulations_label)
-        feeds_formulations_row.addWidget(reset_btn)
+        feeds_formulations_row.addWidget(self.reset_btn)
         maize_brand_row = QHBoxLayout()
         kbc_30_row = QHBoxLayout()
         broken_row = QHBoxLayout()
@@ -141,6 +193,7 @@ class Dashboard(QMainWindow):
         self.maize_brand_input.setDisabled(True)
         maize_brand_row.addWidget(maize_brand_title)
         maize_brand_row.addWidget(self.maize_brand_input)
+        self.maize_brand_input.setMaximumWidth(200)
 
         #KBC
         kbc_30_title = QLabel("KBC30: ")
@@ -149,6 +202,7 @@ class Dashboard(QMainWindow):
         self.kbc_30_input.setDisabled(True)
         kbc_30_row.addWidget(kbc_30_title)
         kbc_30_row.addWidget(self.kbc_30_input)
+        self.kbc_30_input.setMaximumWidth(200)
 
         #Broken
         broken_title = QLabel("Broken: ")
@@ -157,10 +211,12 @@ class Dashboard(QMainWindow):
         self.broken_input.setDisabled(True)
         broken_row.addWidget(broken_title)
         broken_row.addWidget(self.broken_input)
+        self.broken_input.setMaximumWidth(200)
 
         #Calculate reset buttons
         calculate_reset_btn_row = QHBoxLayout()
         self.calculate_btn = QPushButton("Calculate")
+        self.calculate_btn.clicked.connect(self.calculate_formula)
         self.save_btn = QPushButton("Save")
         self.calculate_btn.setStyleSheet("""
             background:blue;
@@ -170,6 +226,7 @@ class Dashboard(QMainWindow):
             background:green;
             padding:5px;
         """)
+        self.save_btn.clicked.connect(self.save_data)
         calculate_reset_btn_row.addWidget(self.calculate_btn)
         calculate_reset_btn_row.addWidget(self.save_btn)
 
@@ -183,8 +240,66 @@ class Dashboard(QMainWindow):
         third_row_layout.addLayout(broken_row)
         third_row_layout.addWidget(spacer)
         third_row_layout.addLayout(calculate_reset_btn_row)
+        third_row_widget = QWidget()
+        third_row_widget.setLayout(third_row_layout)
+        third_row_widget.setMaximumWidth(350)
 
-        dashboard_vlayout.addLayout(third_row_layout, 2, 0, Qt.AlignmentFlag.AlignTop)
+        #Place layout on 3rd row 1st column
+        dashboard_vlayout.addWidget(third_row_widget, 2, 0, Qt.AlignmentFlag.AlignTop)
+
+        #table
+        history_section_widget = QWidget()
+        history_section_layout = QVBoxLayout()
+        table_title = QLabel("Formulations History")
+        table_title.setAlignment(Qt.AlignmentFlag.AlignTop)
+        table_title.setStyleSheet("""
+            font-weight:bold;
+            text-transform:uppercase;
+        """)
+        
+        #Create the table instance
+        self.history_table = QTableWidget()
+        self.history_table.setMinimumSize(QSize(700,300))
+        rows = len(self.data)
+        self.history_table.setRowCount(rows)
+        self.history_table.setColumnCount(7)
+        
+        #create the table header leables
+        self.history_table.setHorizontalHeaderLabels(["Date","Week","Total Chicken","Total Feeds","Maize Brand","KBC30","Broken"])
+        
+        #Add rows to the table
+        row_counter=-1
+        # keys = ["date","week","total_chicken","total_feeds","maize_brand","kbc","broken"]
+        for x in self.data:
+            row_counter = row_counter + 1
+            for y in range(len(x)):
+                if y == 2 or y == 3:
+                    self.history_table.setItem(row_counter, y, QTableWidgetItem(str("{:,}".format(x[y]))))
+                else:
+                    self.history_table.setItem(row_counter, y, QTableWidgetItem(str(x[y])))
+
+        #Select a row of the table
+        self.history_table.itemClicked.connect(self.selected_item)
+
+        self.delete_btn = QPushButton("Delete")
+        self.delete_btn.setMaximumSize(QSize(100,100))
+        self.delete_btn.setStyleSheet("""
+            background:red;
+            padding:5px;
+        """)
+        self.delete_btn.setDisabled(True)
+        self.delete_btn.clicked.connect(self.delete_table_row)
+        history_section_layout.addWidget(table_title,1)
+        history_section_layout.addWidget(self.history_table,2)
+        info_text = QLabel("To delete a row, select the DATE of that row first, then click Delete.")
+        history_section_layout.addWidget(spacer)
+        history_section_layout.addWidget(info_text)
+        history_section_layout.addWidget(spacer)
+        history_section_layout.addWidget(self.delete_btn)
+        history_section_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        history_section_widget.setLayout(history_section_layout)
+        dashboard_vlayout.addWidget(history_section_widget,2,1,Qt.AlignmentFlag.AlignTop)
+
         #Home Central Widget
         central_widget = QWidget()
         central_widget.setLayout(dashboard_vlayout)
@@ -218,6 +333,64 @@ class Dashboard(QMainWindow):
         if not values.isnumeric():
             self.ratio3.setText("")
 
+    #Add or update ratio values
+    def addUpdateRatio1(self):
+        values = self.ratio1.text()
+        # Add to DB
+        con = sqlite3.connect("files/data/database.db")
+        cursor = con.cursor()
+        res = cursor.execute("""
+                        SELECT ratio_value FROM ratios WHERE ratio_title = ?
+                    """, ["maize_brand"]).fetchone()
+        if res == None:
+            cursor.execute("""
+                            INSERT INTO ratios(ratio_title, ratio_value) VALUES(?,?)
+                        """, ["maize_brand", values])
+            con.commit()
+        else:
+            cursor.execute("""
+                            UPDATE ratios SET ratio_value = ? WHERE ratio_title = ?
+                        """, [values,"maize_brand"])
+            con.commit()
+
+    def addUpdateRatio2(self):
+        values = self.ratio2.text()
+        # Add to DB
+        con = sqlite3.connect("files/data/database.db")
+        cursor = con.cursor()
+        res = cursor.execute("""
+                        SELECT ratio_value FROM ratios WHERE ratio_title = ?
+                    """, ["kbc"]).fetchone()
+        if res == None:
+            cursor.execute("""
+                            INSERT INTO ratios(ratio_title, ratio_value) VALUES(?,?)
+                        """, ["kbc", values])
+            con.commit()
+        else:
+            cursor.execute("""
+                            UPDATE ratios SET ratio_value = ? WHERE ratio_title = ?
+                        """, [values,"kbc"])
+            con.commit()
+
+    def addUpdateRatio3(self):
+        values = self.ratio3.text()
+        # Add to DB
+        con = sqlite3.connect("files/data/database.db")
+        cursor = con.cursor()
+        res = cursor.execute("""
+                        SELECT ratio_value FROM ratios WHERE ratio_title = ?
+                    """, ["broken"]).fetchone()
+        if res == None:
+            cursor.execute("""
+                            INSERT INTO ratios(ratio_title, ratio_value) VALUES(?,?)
+                        """, ["broken", values])
+            con.commit()
+        else:
+            cursor.execute("""
+                            UPDATE ratios SET ratio_value = ? WHERE ratio_title = ?
+                        """, [values,"broken"])
+            con.commit()
+
     def numeric_input_only_chicken(self):
         values = self.total_chicken_input.text()
         if not values.isnumeric():
@@ -230,7 +403,111 @@ class Dashboard(QMainWindow):
             
     def week_change(self):
         current_value = self.week_selection.currentText()
-        print(f"Week has changed to {current_value}")
+
+    def selected_item(self):
+        selected = self.history_table.selectedItems()
+        #Activate the button
+        self.delete_btn.setDisabled(False)
+        for x in selected:
+            self.selected_row_value = x.text()
+            self.selected_row = x.row()
+
+    def delete_table_row(self):
+        self.delete_btn.setDisabled(True)
+        #Delete row from DB
+        con = sqlite3.connect("files/data/database.db")
+        cursor = con.cursor()
+        cursor.execute("""
+            DELETE FROM feeds_formulation WHERE date = ?
+        """,[str(self.selected_row_value)])
+        con.commit()
+        con.close()
+
+        # Delete row from table
+        self.history_table.removeRow(self.selected_row)
+
+    def calculate_formula(self):
+        try:
+            ratio1 = int(self.ratio1.text())
+            ratio2 = int(self.ratio2.text())
+            ratio3 = int(self.ratio3.text())
+            total_ratio = (ratio1 + ratio2 + ratio3)
+            week = int(self.week_selection.currentText())
+            if week == 1:
+                week_value = 0.167
+            elif week == 2:
+                week_value = 0.375
+            elif week == 3:
+                week_value = 0.65
+            elif week == 4:
+                week_value = 0.945
+            elif week == 5:
+                week_value = 1.215
+            elif week == 6:
+                week_value = 1.434
+            elif week == 7:
+                week_value = 1.593
+            elif week == 8:
+                week_value = 1.691
+            elif week == 9:
+                week_value = 1.715
+            else:
+                week_value = 0
+
+            total_chicken = int(self.total_chicken_input.text())
+            total_feeds = float(total_chicken * week_value)
+            self.total_feeds_input.setText(str(total_feeds))
+            calculated_maize_brand = "{:.2f}".format((ratio1 / total_ratio) * total_feeds)
+            calculated_kbc = "{:.2f}".format((ratio2 / total_ratio) * total_feeds)
+            calculated_broken = "{:.2f}".format((ratio3 / total_ratio) * total_feeds)
+            self.maize_brand_input.setText(str(calculated_maize_brand))
+            self.kbc_30_input.setText(str(calculated_kbc))
+            self.broken_input.setText(str(calculated_broken))
+        except:
+            alert = QMessageBox.critical(self, "Alert","All fields must be filled!",QMessageBox.Ok)
+
+    def reset_inputs(self):
+        self.total_feeds_input.setText("")
+        self.total_chicken_input.setText("")
+        self.maize_brand_input.setText("")
+        self.kbc_30_input.setText("")
+        self.broken_input.setText("")
+
+    def save_data(self):
+        date = datetime.today().strftime('%d-%m-%Y')
+        week = self.week_selection.currentText()
+        total_chicken = self.total_chicken_input.text()
+        total_feeds = self.total_chicken_input.text()
+        maize_brand = self.maize_brand_input.text()
+        broken = self.broken_input.text()
+        kbc = self.kbc_30_input.text()
+        data = [date,week,total_chicken,total_feeds, maize_brand, broken, kbc]
+        if date != "" and week != "" and total_chicken != "" and total_feeds != "" and maize_brand != "" and broken != "" and kbc != "":
+            # Save to DB
+            con = sqlite3.connect("files/data/database.db")
+            cursor = con.cursor()
+            res = cursor.execute("""
+                SELECT date FROM feeds_formulation WHERE date = ?;
+            """,[date]).fetchall()
+            print(res)
+            if len(res) == 0:
+                cursor.execute("""
+                                                INSERT INTO feeds_formulation(date,week,total_chicken,total_feeds,maize_brand,kbc,broken) VALUES(?,?,?,?,?,?,?)
+                                            """, data)
+                con.commit()
+                con.close()
+
+                # Diplay in the table
+                self.history_table.insertRow(0)
+                for x in range(len(data)):
+                    if x == 2 or x == 3 or x == 4 or x == 5 or x == 6:
+                        self.history_table.setItem(0, x, QTableWidgetItem(str("{:,}".format(float(data[x])))))
+                    else:
+                        self.history_table.setItem(0, x, QTableWidgetItem(str(data[x])))
+            else:
+                alert = QMessageBox.critical(self, "Alert", "Sorry, today's data already saved!", QMessageBox.Ok)
+        else:
+            alert = QMessageBox.critical(self,"Alert","Error: Cannot save, check fields!",QMessageBox.Ok)
         
     def logout(self):
         self.close()
