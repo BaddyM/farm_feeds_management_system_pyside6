@@ -2,18 +2,21 @@ from PySide6.QtWidgets import QWidget,QVBoxLayout,QLineEdit, QLabel, QHBoxLayout
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QSize,Qt
 import sqlite3
-import bcrypt
-from dashboard import Dashboard
+import sys
+import os
+from database import Database
 
 class Auth(QWidget):
     def __init__(self):
+        global file_path
         super().__init__()
         self.setWindowTitle("Login")
         self.setWindowIcon(QIcon("logo.png"))
         self.setMinimumSize(QSize(500,250))
-        
-        #Create sqlite connection
-        con = sqlite3.connect("files/data/database.db")
+
+        database = Database()
+        self.db_path = database.db_path
+        con = sqlite3.connect(self.db_path)
         cursor = con.cursor()
         cursor.execute("CREATE TABLE IF NOT EXISTS user(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL,password INTEGER NOT NULL)")
         cursor.execute("INSERT INTO user(username, password) VALUES(?,?)",["admin","admin"])
@@ -66,18 +69,19 @@ class Auth(QWidget):
         password = self.password_input.text()
         
         #check database
-        if(username != "" and password != ""):
-            con = sqlite3.connect("files/data/database.db")
+        if username != "" and password != "" :
+            con = sqlite3.connect(self.db_path)
             cursor = con.cursor()
             result = cursor.execute(f"SELECT * FROM user WHERE username='{username}' AND password = '{password}';")
-            if(result.fetchone() == None):
+            if result.fetchone() is None:
                 alert = QMessageBox.critical(self,"Alert","Invalid Credentials",QMessageBox.Ok)
             else:
-                #close current window
-                self.close()
-                
-                #Go to dashboard
+                # Go to dashboard
+                from dashboard import Dashboard
                 self.window = Dashboard()
-                self.window.show()                
+                self.window.show()
+
+                #close current window
+                self.hide()
         else:
             alert = QMessageBox.critical(self,"Alert","All fields must be filled",QMessageBox.Ok)

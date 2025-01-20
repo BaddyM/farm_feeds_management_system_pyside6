@@ -4,6 +4,7 @@ from PySide6.QtGui import QIcon,Qt
 from PySide6.QtCore import QSize
 import sqlite3
 from datetime import datetime
+from database import  Database
 
 class Dashboard(QMainWindow):
     def __init__(self):
@@ -11,7 +12,9 @@ class Dashboard(QMainWindow):
         self.setWindowTitle("Farm Feeds System")
         self.setWindowIcon(QIcon("logo.png"))
         self.setMinimumSize(QSize(1220,600))
-        con = sqlite3.connect("files/data/database.db")
+        database = Database()
+        self.db_path = database.db_path
+        con = sqlite3.connect(self.db_path)
         cursor = con.cursor()
 
         #Create feeds formulation table
@@ -41,7 +44,7 @@ class Dashboard(QMainWindow):
 
         self.selected_row = 0
         self.selected_row_value = ""
-        
+
         #Menu
         menuBar = self.menuBar()
         file = menuBar.addMenu("File")
@@ -54,7 +57,7 @@ class Dashboard(QMainWindow):
         # settings.addAction("Weeks Data")
         settings.addSeparator()
         settings.addAction("Logout",self.logout)
-        
+
         #Call the home widget
         self.home()
 
@@ -96,7 +99,8 @@ class Dashboard(QMainWindow):
             self.ratio2.setText(str(self.ratios[1][2]))
             self.ratio3.setText(str(self.ratios[2][2]))
         except:
-            alert = QMessageBox.information(self,"Notification","Please add all ratios!",QMessageBox.Ok)
+            pass
+            # alert = QMessageBox.information(self,"Notification","Please add all ratios!",QMessageBox.Ok)
 
         self.ratio1.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.ratio2.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -256,17 +260,17 @@ class Dashboard(QMainWindow):
             font-weight:bold;
             text-transform:uppercase;
         """)
-        
+
         #Create the table instance
         self.history_table = QTableWidget()
         self.history_table.setMinimumSize(QSize(700,300))
         rows = len(self.data)
         self.history_table.setRowCount(rows)
         self.history_table.setColumnCount(7)
-        
+
         #create the table header leables
         self.history_table.setHorizontalHeaderLabels(["Date","Week","Total Chicken","Total Feeds","Maize Brand","KBC30","Broken"])
-        
+
         #Add rows to the table
         row_counter=-1
         # keys = ["date","week","total_chicken","total_feeds","maize_brand","kbc","broken"]
@@ -307,7 +311,7 @@ class Dashboard(QMainWindow):
 
     def quit_app(self):
         self.close()
-    
+
     def profile(self):
         profile_layout = QVBoxLayout()
         profile_layout.setSpacing(10)
@@ -384,7 +388,7 @@ class Dashboard(QMainWindow):
 
     def update_profile(self):
         # Fetch Data
-        con = sqlite3.connect("files/data/database.db")
+        con = sqlite3.connect(self.db_path)
         cursor = con.cursor()
         res = cursor.execute("""
                     SELECT * FROM user WHERE username = ? AND password = ?;
@@ -413,12 +417,12 @@ class Dashboard(QMainWindow):
         values = self.ratio1.text()
         if not values.isnumeric():
             self.ratio1.setText("")
-            
+
     def ratio_two_validator(self):
         values = self.ratio2.text()
         if not values.isnumeric():
             self.ratio2.setText("")
-            
+
     def ratio_three_validator(self):
         values = self.ratio3.text()
         if not values.isnumeric():
@@ -428,7 +432,7 @@ class Dashboard(QMainWindow):
     def addUpdateRatio1(self):
         values = self.ratio1.text()
         # Add to DB
-        con = sqlite3.connect("files/data/database.db")
+        con = sqlite3.connect(self.db_path)
         cursor = con.cursor()
         res = cursor.execute("""
                         SELECT ratio_value FROM ratios WHERE ratio_title = ?
@@ -447,7 +451,7 @@ class Dashboard(QMainWindow):
     def addUpdateRatio2(self):
         values = self.ratio2.text()
         # Add to DB
-        con = sqlite3.connect("files/data/database.db")
+        con = sqlite3.connect(self.db_path)
         cursor = con.cursor()
         res = cursor.execute("""
                         SELECT ratio_value FROM ratios WHERE ratio_title = ?
@@ -466,7 +470,7 @@ class Dashboard(QMainWindow):
     def addUpdateRatio3(self):
         values = self.ratio3.text()
         # Add to DB
-        con = sqlite3.connect("files/data/database.db")
+        con = sqlite3.connect(self.db_path)
         cursor = con.cursor()
         res = cursor.execute("""
                         SELECT ratio_value FROM ratios WHERE ratio_title = ?
@@ -491,7 +495,7 @@ class Dashboard(QMainWindow):
         values = self.total_feeds_input.text()
         if not values.isnumeric():
             self.total_feeds_input.setText("")
-            
+
     def week_change(self):
         week = int(self.week_selection.currentText())
         if week == 1:
@@ -546,7 +550,7 @@ class Dashboard(QMainWindow):
     def delete_table_row(self):
         self.delete_btn.setDisabled(True)
         #Delete row from DB
-        con = sqlite3.connect("files/data/database.db")
+        con = sqlite3.connect(self.db_path)
         cursor = con.cursor()
         cursor.execute("""
             DELETE FROM feeds_formulation WHERE date = ?
@@ -615,7 +619,7 @@ class Dashboard(QMainWindow):
         data = [date,week,total_chicken,total_feeds, maize_brand, broken, kbc]
         if date != "" and week != "" and total_chicken != "" and total_feeds != "" and maize_brand != "" and broken != "" and kbc != "":
             # Save to DB
-            con = sqlite3.connect("files/data/database.db")
+            con = sqlite3.connect(self.db_path)
             cursor = con.cursor()
             res = cursor.execute("""
                 SELECT date FROM feeds_formulation WHERE date = ?;
